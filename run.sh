@@ -126,7 +126,7 @@ function reset_yomi_demo {
     # Reset the Yomi pillars for the demo
     local reset=$1
 
-    [-f "srv/salt/top.sls" -a "$reset" = "false" ] && return
+    [ -f "srv/salt/top.sls" -a "$reset" = "false" ] && return
     if [ -f "srv/salt/top.sls" ]; then
 	rm srv/salt/top.sls
 	rm srv/pillar/*
@@ -207,7 +207,7 @@ users:
     password: "$1$wYJUgpM5$RXMMeASDc035eX.NbYWFl0"
 EOF
 
-    cat <<EOF > srv/pillar/node1.sls
+    cat <<EOF > srv/pillar/node2.sls
 config:
   kexec: yes
   snapper: yes
@@ -351,7 +351,7 @@ if ! pgrep -x "salt-master" > /dev/null; then
     exit 1
 fi
 
-salt-key -c salt-master/etc/salt -yD
+salt-key -c venv/etc/salt -yD
 
 # Launch node 1
 qemu-system-x86_64 -m 1024 -enable-kvm \
