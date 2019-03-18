@@ -19,6 +19,33 @@
 
 set -e
 
+DIR="$(cd "$(dirname "$0")"; pwd -P)"
+LOG="$DIR/run.log"
+
+BLACK="\033[0;30m"
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+BLUE="\033[0;34m"
+MAGENTA="\033[0;35m"
+CYAN="\033[0;36m"
+WHITE="\033[0;37m"
+BRIGHT_BLACK="\033[1;30m"
+BRIGHT_RED="\033[1;31m"
+BRIGHT_GREEN="\033[1;32m"
+BRIGHT_YELLOW="\033[0;33m"
+BRIGHT_BLUE="\033[0;34m"
+BRIGHT_MAGENTA="\033[0;35m"
+BRIGHT_CYAN="\033[0;36m"
+BRIGHT_WHITE="\033[0;37m"
+RESET="\033[0m"
+
+function error_report  {
+    echo -e "${RED}ERROR${RESET} on line $1"
+}
+
+trap 'error_report $LINENO' ERR
+
 function exist_iso {
     # Echo 0 if the ISO exist, 2 if do not exits
     ls ISO-openSUSE-Tumbleweed*.iso &> /dev/null
@@ -31,7 +58,10 @@ function reset_iso {
 
     [ "$(exist_iso)" = "0" -a "$reset" = "false" ] && return
     [ "$(exist_iso)" = "0" ] && rm ISO-openSUSE-Tumbleweed*.iso
-    osc getbinaries home:aplanas:Images test-image-iso images x86_64
+
+    echo -e "${GREEN}DOWNLOADING${RESET} ISO image from home:aplanas:Images:test-image-iso"
+
+    osc getbinaries home:aplanas:Images test-image-iso images x86_64 >>"$LOG" 2>&1
     mv binaries/*.iso .
     rm -fr binaries
 }
@@ -47,7 +77,10 @@ function reset_qcow2 {
 
     [ -f "$fname" -a "$reset" = "false" ] && return
     [ -f "$fname" ] && rm "$fname"
-    qemu-img create -f qcow2 "$fname" "$size"
+
+    echo -e "${GREEN}CREATING${RESET} QCOW2 image $fname with $size"
+
+    qemu-img create -f qcow2 "$fname" "$size" >>"$LOG" 2>&1
 }
 
 function reset_bios {
@@ -56,12 +89,36 @@ function reset_bios {
 
     [ -f "ovmf-x86_64-code.bin" -a "$reset" = "false" ] && return
     [ -f "ovmf-x86_64-code.bin" ] && rm ovmf-x86_64-code.bin ovmf-x86_64-vars.bin
-    osc getbinaries Virtualization ovmf openSUSE_Factory x86_64
+
+    echo -e "${GREEN}DOWNLOADING${RESET} OVMF firmware from Virtualization:ovmf"
+
+    osc getbinaries Virtualization ovmf openSUSE_Factory x86_64 >>"$LOG" 2>&1
     cd binaries
-    unrpm qemu-ovmf-x86_64*.noarch.rpm
+    unrpm qemu-ovmf-x86_64*.noarch.rpm >>"$LOG" 2>&1
     cd ..
     mv binaries/usr/share/qemu/ovmf-x86_64-code.bin binaries/usr/share/qemu/ovmf-x86_64-vars.bin .
     rm -fr binaries
+}
+
+function stop_salt_master {
+    # Stop the salt-master service
+    echo -e "${GREEN}STOPPING${RESET} salt-master"
+
+    deactivate &> /dev/null || true
+    pkill -9 salt-master || true
+    if pgrep -x "salt-master" > /dev/null; then
+	echo -r "${RED}ERROR${RESET} salt-master cannot be stoped, please stop it manually"
+	exit 1
+    fi
+}
+
+function start_salt_master {
+    # Start the salt-master service
+    echo -e "${GREEN}STARTING${RESET} salt-master"
+
+    deactivate &> /dev/null || true
+    source venv/bin/activate    
+    salt-master -c venv/etc/salt &
 }
 
 function reset_salt_master {
@@ -69,24 +126,23 @@ function reset_salt_master {
     local reset=$1
 
     [ -d "venv" -a "$reset" = "false" ] && return
-
     # Before replacing the venv we stop salt-master
-    deactivate &> /dev/null || true
-    pkill -9 salt-master || true
-    if pgrep -x "salt-master" > /dev/null; then
-	echo "salt-master cannot be stoped, please stop it manually"
-	exit 1
-    fi
+    stop_salt_master
+    [ -d "venv" ] && rm -fr venv
+
+    echo -e "${GREEN}DOWNLOADING${RESET} salt-master inside a venv"
 
     # Install salt-master
-    [ -d "venv" ] && rm -fr venv
     python3 -mvenv venv
     source venv/bin/activate
-    pip install --upgrade pip &> /dev/null
-    pip install salt &> /dev/null || (echo "Error installing salt"; exit 1)
+    pip install --upgrade pip >>"$LOG" 2>&1
+    pip install salt >>"$LOG" 2>&1 || (echo "${RED}ERROR${RESET} installing salt"; exit 1)
 
     # Configure salt-master
     [ -d "salt-master" ] && rm -fr salt-master
+
+    echo -e "${GREEN}CONFIGURING${RESET} salt-master"
+
     mkdir -p venv/etc/salt/pki/{master,minion} venv/etc/salt/autosign_grains venv/var
     cat <<EOF > venv/etc/salt/master
 root_dir: $(pwd)/venv
@@ -100,12 +156,11 @@ pillar_roots:
 EOF
 
     # Generate UUIDs for autosign
+    echo -e "${GREEN}GENERATING${RESET} UUIDs for autosign"
+
     for i in $(seq 0 9); do
 	echo $(uuidgen --md5 --namespace @dns --name http://opensuse.org/$i)
     done > venv/etc/salt/autosign_grains/uuid
-
-    # Restart the service with the new configuration file
-    salt-master -c venv/etc/salt &
 }
 
 function reset_yomi {
@@ -115,7 +170,9 @@ function reset_yomi {
     [ -d "srv" -a "$reset" = "false" ] && return
     [ -d "srv" ] && rm -fr srv
 
-    git clone --depth 1 https://github.com/openSUSE/yomi srv
+    echo -e "${GREEN}DOWNLOADING${RESET} Yomi"
+
+    git clone --depth 1 https://github.com/openSUSE/yomi srv >>"$LOG" 2>&1
 
     # Clean the top.sls state and the pillars
     rm srv/salt/top.sls
@@ -131,6 +188,8 @@ function reset_yomi_demo {
 	rm srv/salt/top.sls
 	rm srv/pillar/*
     fi
+
+    echo -e "${GREEN}GENERATING${RESET} Yomi pillars"
 
     cat <<EOF > srv/salt/top.sls
 base:
@@ -322,9 +381,7 @@ while getopts ':hcf' option; do
     esac
 done
 
-# TODO
-# - Download Yomi and put in the correct place
-# - Provide the pillars for Yomi
+echo "Starting demo" >>"$LOG" 2>&1
 
 # If we reset the ISO or ISO is not found, download it
 reset_iso "$full_clean"
@@ -341,6 +398,8 @@ reset_bios "$full_clean"
 
 # Setup salt-master
 reset_salt_master "$full_clean"
+stop_salt_master
+start_salt_master
 
 # Put in place the Yomi code
 reset_yomi "$full_clean"
@@ -354,7 +413,11 @@ if ! pgrep -x "salt-master" > /dev/null; then
     exit 1
 fi
 
-salt-key -c venv/etc/salt -yD
+echo -e "${GREEN}CLEANING${RESET} old salt-minion keys"
+
+salt-key -c venv/etc/salt -yD >>"$LOG" 2>&1
+
+echo -e "${GREEN}BOOTING${RESET} node 1 and node 2 VMs"
 
 # Launch node 1
 qemu-system-x86_64 -m 1024 -enable-kvm \
@@ -371,8 +434,8 @@ qemu-system-x86_64 -m 1024 -enable-kvm \
    -cdrom ISO*.iso \
    -hda hda-node2.qcow2 \
    -hdb hdb-node2.qcow2 \
-   -L .\
-   -bios ./bios.bin \
+   -drive if=pflash,format=raw,unit=0,readonly,file=./ovmf-x86_64-code.bin \
+   -drive if=pflash,format=raw,unit=1,file=./ovmf-x86_64-vars.bin \
    -boot d &
 
 wait ${!}
