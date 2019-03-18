@@ -117,7 +117,8 @@ function start_salt_master {
     echo -e "${GREEN}STARTING${RESET} salt-master"
 
     deactivate &> /dev/null || true
-    source venv/bin/activate    
+    export PYTHONWARNINGS="ignore"
+    source venv/bin/activate
     salt-master -c venv/etc/salt &
 }
 
@@ -146,6 +147,7 @@ function reset_salt_master {
     mkdir -p venv/etc/salt/pki/{master,minion} venv/etc/salt/autosign_grains venv/var
     cat <<EOF > venv/etc/salt/master
 root_dir: $(pwd)/venv
+log_level: error
 autosign_grains_dir: /etc/salt/autosign_grains
 file_roots:
   base:
