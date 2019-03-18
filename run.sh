@@ -336,6 +336,9 @@ reset_qcow2 "$qcow2_clean" "hda" "1" "24G"
 reset_qcow2 "$qcow2_clean" "hda" "2" "24G"
 reset_qcow2 "$qcow2_clean" "hdb" "2" "24G"
 
+# Get the OVMF firmware
+reset_bios "$full_clean"
+
 # Setup salt-master
 reset_salt_master "$full_clean"
 
