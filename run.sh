@@ -106,6 +106,7 @@ function stop_salt_master {
 
     deactivate &> /dev/null || true
     pkill -9 salt-master || true
+    sleep 5
     if pgrep -x "salt-master" > /dev/null; then
 	echo -e "${RED}ERROR${RESET} salt-master cannot be stoped, please stop it manually"
 	exit 1
@@ -173,6 +174,7 @@ function stop_salt_api {
     echo -e "${GREEN}STOPPING${RESET} salt-api"
 
     pkill -9 salt-api || true
+    sleep 1
     if pgrep -x "salt-api" > /dev/null; then
 	echo -e "${RED}ERROR${RESET} salt-api cannot be stoped, please stop it manually"
 	exit 1
