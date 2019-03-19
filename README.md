@@ -60,14 +60,14 @@ export SALTAPI_EAUTH=file
 export SALTAPI_USER=salt
 export SALTAPI_PASS=linux
 
-srv/monitor -r -e
+srv/monitor -r -y
 ```
 
 You can add the user and password directly to the `monitor` call:
 
 ```Bash
 source venv/bin/activate
-srv/monitor -u http://localhost:8000 -a file -n salt -p linux -r -e
+srv/monitor -u http://localhost:8000 -a file -n salt -p linux -r -y
 ```
 
 Now, in the first terminal, we can launch the installation in all the
@@ -76,3 +76,40 @@ nodes:
 ```Bash
 salt -c venv/etc/salt '*' state.highstate
 ```
+
+# Troubleshooting
+
+Several elements can go wrong with the demo, lets see some of them:
+
+* Salt-master start slow
+
+  A bug reported shows that in some environment (for example, when
+  ybind is used), makes `salt-master` start slow. This can cause
+  problems with `salt-api` later or. A simple solution is to make sure
+  that both services are down and start them manually: first
+  `salt-master`, and once is up, `salt-api`. Check the code to see how
+  to do that properly.
+
+* The software state fails
+
+  If there is a problem with the openSUSE repositories, this state can
+  fail. This will not abort the installation (failhard is not set in
+  the minions), so this will produce a chain of fails later on. A
+  solution is to set a local repo, or wait a bit until the openSUSE
+  repositories are working again.
+  
+* The monitor tool fails the authentication
+
+  For speed purposes the monitor cache the authentication tokens
+  locally. The parameter `-r` remove this cache, as I can expect that
+  the environment will be recreated and the services will be restarted
+  (something that invalidate the tokens). If the `monitor` fails to
+  authenticate, double check that the `-r` parameter is in place.
+
+* The monitor tools shows error in mount / umount states
+
+  If you are commenting the `kexec` state in `installer.sls`, Yomi
+  will not umount the chroot environment. This is done on to simplify
+  the debugging, and also `kexec` needs this accessible to find the
+  kernel. In that case a second run on Yomi will show errors in the
+  mount / umount states. Is safe to ignore them.
