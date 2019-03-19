@@ -144,7 +144,10 @@ function reset_salt_master {
 
     echo -e "${GREEN}CONFIGURING${RESET} salt-master"
 
-    mkdir -p venv/etc/salt/pki/{master,minion} venv/etc/salt/autosign_grains venv/var
+    mkdir -p venv/etc/salt/pki/{master,minion} \
+	  venv/etc/salt/autosign_grains \
+	  venv/var/cache/salt/master/file_lists/roots \
+	  venv/var
     cat <<EOF > venv/etc/salt/master
 root_dir: $(pwd)/venv
 log_level: error
@@ -317,7 +320,7 @@ software:
 
 users:
   - username: root
-    password: "$1$wYJUgpM5$RXMMeASDc035eX.NbYWFl0"
+    password: "\$1\$wYJUgpM5\$RXMMeASDc035eX.NbYWFl0"
 EOF
 
     cat <<EOF > srv/pillar/node2.sls
@@ -395,7 +398,7 @@ software:
 
 users:
   - username: root
-    password: "$1$wYJUgpM5$RXMMeASDc035eX.NbYWFl0"
+    password: "\$1\$wYJUgpM5\$RXMMeASDc035eX.NbYWFl0"
 EOF
 }
 
@@ -460,7 +463,7 @@ reset_salt_api "$full_clean"
 stop_salt_api
 stop_salt_master
 start_salt_master
-sleep 1
+sleep 30
 start_salt_api
 
 # Put in place the Yomi code
