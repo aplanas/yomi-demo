@@ -15,6 +15,15 @@ openSUSE Tumbleweed in two different kind of nodes:
 After that it will restart the `salt-master` service and launch two
 QEMU nodes, that match those profiles.
 
+Together with `salt-master`, an instance of `salt-api` will be
+launched and listening to port 8000. This will be the connector for
+the monitor.
+
+The `auth` module of `salt-api` will be configured to read the user
+and password from a file, in `venv/etc/user-list.txt`. For this demo
+the user will be `salt` and the password `linux`. This file will be
+reset to those values every time the script is executed.
+
 To remove all the downloaded assets and re-download it, we can run the
 script with the `-f` parameter. If we want only to recreate the QCOW2
 images (for example, to generate another run on Yomi), we can use the

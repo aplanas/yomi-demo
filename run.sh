@@ -107,7 +107,7 @@ function stop_salt_master {
     deactivate &> /dev/null || true
     pkill -9 salt-master || true
     if pgrep -x "salt-master" > /dev/null; then
-	echo -r "${RED}ERROR${RESET} salt-master cannot be stoped, please stop it manually"
+	echo -e "${RED}ERROR${RESET} salt-master cannot be stoped, please stop it manually"
 	exit 1
     fi
 }
@@ -137,7 +137,7 @@ function reset_salt_master {
     python3 -mvenv venv
     source venv/bin/activate
     pip install --upgrade pip >>"$LOG" 2>&1
-    pip install salt >>"$LOG" 2>&1 || (echo "${RED}ERROR${RESET} installing salt"; exit 1)
+    pip install cherrypy ws4py salt >>"$LOG" 2>&1 || (echo "${RED}ERROR${RESET} installing salt"; exit 1)
 
     # Configure salt-master
     [ -d "salt-master" ] && rm -fr salt-master
@@ -163,6 +163,58 @@ EOF
     for i in $(seq 0 9); do
 	echo $(uuidgen --md5 --namespace @dns --name http://opensuse.org/$i)
     done > venv/etc/salt/autosign_grains/uuid
+}
+
+function stop_salt_api {
+    # Stop the salt-api service
+    echo -e "${GREEN}STOPPING${RESET} salt-api"
+
+    pkill -9 salt-api || true
+    if pgrep -x "salt-api" > /dev/null; then
+	echo -e "${RED}ERROR${RESET} salt-api cannot be stoped, please stop it manually"
+	exit 1
+    fi
+}
+
+function start_salt_api {
+    # Start the salt-api service
+    echo -e "${GREEN}STARTING${RESET} salt-api"
+
+    deactivate &> /dev/null || true
+    export PYTHONWARNINGS="ignore"
+    source venv/bin/activate
+    salt-api -c venv/etc/salt &
+}
+
+function reset_salt_api {
+    # Configure salt-api inside a venv
+    local reset=$1
+
+    echo -e "${GREEN}CONFIGURING${RESET} salt-api"
+
+    mkdir -p venv/etc/salt/master.d
+    cat <<EOF > venv/etc/salt/master.d/salt-api.conf
+rest_cherrypy:
+  port: 8000
+  debug: no
+  disable_ssl: yes
+  # ssl_crt: $(pwd)/venv/etc/ssl/server.crt
+  # ssl_key: $(pwd)/venv/etc/ssl/server.key
+EOF
+
+    mkdir -p venv/etc/salt/master.d
+    cat <<EOF > venv/etc/salt/master.d/eauth.conf
+external_auth: 
+  file:
+    ^filename: $(pwd)/venv/etc/user-list.txt
+    salt:
+      - .*
+      - '@wheel'
+      - '@runner'
+      - '@jobs'
+EOF
+
+    echo 'salt:linux' > venv/etc/user-list.txt
 }
 
 function reset_yomi {
@@ -400,8 +452,16 @@ reset_bios "$full_clean"
 
 # Setup salt-master
 reset_salt_master "$full_clean"
+
+# Configure salt-api
+reset_salt_api "$full_clean"
+
+# Stop and start the services in order
+stop_salt_api
 stop_salt_master
 start_salt_master
+sleep 1
+start_salt_api
 
 # Put in place the Yomi code
 reset_yomi "$full_clean"
