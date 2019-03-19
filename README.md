@@ -53,5 +53,26 @@ In a different terminal we can monitor the installation using the Yomi
 monitoring tool.
 
 ```Bash
-TBD
+source venv/bin/activate
+
+export SALTAPI_URL=http://localhost:8000
+export SALTAPI_EAUTH=file
+export SALTAPI_USER=salt
+export SALTAPI_PASS=linux
+
+srv/monitor -r -e
+```
+
+You can add the user and password directly to the `monitor` call:
+
+```Bash
+source venv/bin/activate
+srv/monitor -u http://localhost:8000 -a file -n salt -p linux -r -e
+```
+
+Now, in the first terminal, we can launch the installation in all the
+nodes:
+
+```Bash
+salt -c venv/etc/salt '*' state.highstate
 ```
