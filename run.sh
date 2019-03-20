@@ -231,7 +231,7 @@ function reset_yomi {
 
     echo -e "${GREEN}DOWNLOADING${RESET} Yomi"
 
-    git clone --depth 1 https://github.com/openSUSE/yomi srv >>"$LOG" 2>&1
+    git clone --branch demo --depth 1 https://github.com/openSUSE/yomi srv >>"$LOG" 2>&1
 
     # Clean the top.sls state and the pillars
     rm srv/salt/top.sls
