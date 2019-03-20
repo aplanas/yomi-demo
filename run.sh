@@ -147,8 +147,8 @@ function reset_salt_master {
 
     mkdir -p venv/etc/salt/pki/{master,minion} \
 	  venv/etc/salt/autosign_grains \
-	  venv/var/cache/salt/master/file_lists/roots \
-	  venv/var
+	  venv/var/cache/salt/master/file_lists/roots
+
     cat <<EOF > venv/etc/salt/master
 root_dir: $(pwd)/venv
 log_level: error
