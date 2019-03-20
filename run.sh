@@ -359,9 +359,9 @@ lvm:
       - name: swap
         size: 2000M
       - name: root
-        size: 30000M
+        size: 10000M
       - name: home
-        size: 20000M
+        size: 10000M
 
 filesystems:
   /dev/sda1:
