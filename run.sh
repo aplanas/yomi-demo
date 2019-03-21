@@ -207,7 +207,6 @@ rest_cherrypy:
   # ssl_key: $(pwd)/venv/etc/ssl/server.key
 EOF
 
-    mkdir -p venv/etc/salt/master.d
     cat <<EOF > venv/etc/salt/master.d/eauth.conf
 external_auth: 
   file:
