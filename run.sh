@@ -48,7 +48,7 @@ trap 'error_report $LINENO' ERR
 
 function exist_iso {
     # Echo 0 if the ISO exist, 2 if do not exits
-    ls ISO-openSUSE-Tumbleweed*.iso &> /dev/null
+    ls openSUSE-Tumbleweed*.iso &> /dev/null
     echo "$?"
 }
 
@@ -59,9 +59,9 @@ function reset_iso {
     [ "$(exist_iso)" = "0" -a "$reset" = "false" ] && return
     [ "$(exist_iso)" = "0" ] && rm ISO-openSUSE-Tumbleweed*.iso
 
-    echo -e "${GREEN}DOWNLOADING${RESET} ISO image from home:aplanas:Images:test-image-iso"
+    echo -e "${GREEN}DOWNLOADING${RESET} ISO image from systemsmanagement:yomi/openSUSE-Tumbleweed-Yomi:livecd"
 
-    osc getbinaries home:aplanas:Images test-image-iso images x86_64 >>"$LOG" 2>&1
+    osc getbinaries systemsmanagement:yomi/openSUSE-Tumbleweed-Yomi:livecd images x86_64 >>"$LOG" 2>&1
     mv binaries/*.iso .
     rm -fr binaries
 }
@@ -252,40 +252,41 @@ function reset_yomi_demo {
     cat <<EOF > srv/salt/top.sls
 base:
   '00:00:00:*':
-    - installer
+    - yomi.installer
 EOF
 
     cat <<EOF > srv/pillar/top.sls
 base:
   '00:00:00:11:11:11':
-    - node1
+    - microos
 
   '00:00:00:22:22:22':
-    - node2
+    - tumbleweed
 EOF
 
-    cat <<EOF > srv/pillar/node1.sls
+    cat <<EOF > srv/pillar/microos.sls
 config:
-  kexec: yes
+  events: yes
+  reboot: yes #kexec
   snapper: yes
   grub2_theme: yes
+  locale: en_US.UTF-8
+  keymap: us
+  timezone: UTC
 
 partitions:
   config:
     label: gpt
-    alignment: 1
   devices:
     /dev/sda:
+      initial_gap: 1MB
       partitions:
         - number: 1
-          size: 4
+          size: 1MB
           type: boot
         - number: 2
-          size: 20000
+          size: rest
           type: linux
-        - number: 3
-          size: 500
-          type: swap
 
 filesystems:
   /dev/sda2:
@@ -294,73 +295,85 @@ filesystems:
     subvolumes:
       prefix: '@'
       subvolume:
+        - path: root
+        - path: tmp
         - path: home
         - path: opt
-        - path: root
         - path: srv
-        - path: tmp
+        - path: boot/writable
         - path: usr/local
+        - path: boot/grub2/i386-pc
+        - path: boot/grub2/x86_64-efi
         - path: var
           copy_on_write: no
-        - path: boot/grub2/i386-pc
-          archs: ['i386', 'x86_64']
-        - path: boot/grub2/x86_64-efi
-          archs: ['x86_64']
-  /dev/sda3:
-    filesystem: swap
 
 bootloader:
   device: /dev/sda
+  kernel: swapaccount=1
+  disable_os_prober: yes
 
 software:
   repositories:
     repo-oss: "http://download.opensuse.org/tumbleweed/repo/oss"
   packages:
-    - patterns-base-base
-    - kernel-default
+    - pattern:microos_base
+    - pattern:microos_defaults
+    - pattern:microos_hardware
+    - pattern:microos_apparmor
+
+salt-minion:
+  configure: yes
+
+services:
+  enabled:
+    - salt-minion
 
 users:
   - username: root
     password: "\$1\$wYJUgpM5\$RXMMeASDc035eX.NbYWFl0"
 EOF
 
-    cat <<EOF > srv/pillar/node2.sls
+    cat <<EOF > srv/pillar/tumbleweed.sls
 config:
-  kexec: yes
+  events: yes
+  reboot: yes #kexec
   snapper: yes
   grub2_theme: yes
+  locale: en_US.UTF-8
+  keymap: us
+  timezone: UTC
 
 partitions:
   config:
     label: gpt
-    alignment: 1
+    initial_gap: 1MB
   devices:
     /dev/sda:
       partitions:
         - number: 1
-          size: 256
+          size: 256MB
           type: efi
         - number: 2
-          size: 20000
+          size: rest
           type: lvm
     /dev/sdb:
       partitions:
         - number: 1
-          size: 20000
+          size: rest
           type: lvm
 
 lvm:
   system:
-    vgs:
+    devices:
       - /dev/sda2
       - /dev/sdb1
-    lvs:
+    volumes:
       - name: swap
-        size: 2000M
+        size: 1024M
       - name: root
-        size: 10000M
+        size: 16384M
       - name: home
-        size: 10000M
+        extents: 100%FREE
 
 filesystems:
   /dev/sda1:
@@ -394,8 +407,16 @@ software:
   repositories:
     repo-oss: "http://download.opensuse.org/tumbleweed/repo/oss"
   packages:
-    - patterns-base-base
+    - pattern:enhanced_base
+    - glibc-locale
     - kernel-default
+
+salt-minion:
+  configure: yes
+
+services:
+  enabled:
+    - salt-minion
 
 users:
   - username: root
@@ -489,19 +510,17 @@ echo -e "${GREEN}BOOTING${RESET} node 1 and node 2 VMs"
 qemu-system-x86_64 -m 1024 -enable-kvm \
    -netdev user,id=net0,hostfwd=tcp::10022-:22 \
    -device e1000,netdev=net0,mac=00:00:00:11:11:11 \
-   -cdrom ISO*.iso \
-   -hda hda-node1.qcow2 \
-   -boot d &
+   -cdrom openSUSE*.iso \
+   -hda hda-node1.qcow2 &
 
 # Launch node 2
 qemu-system-x86_64 -m 1024 -enable-kvm \
    -netdev user,id=net0,hostfwd=tcp::10023-:22 \
    -device e1000,netdev=net0,mac=00:00:00:22:22:22 \
-   -cdrom ISO*.iso \
+   -cdrom openSUSE*.iso \
    -hda hda-node2.qcow2 \
    -hdb hdb-node2.qcow2 \
    -drive if=pflash,format=raw,unit=0,readonly,file=./ovmf-x86_64-code.bin \
-   -drive if=pflash,format=raw,unit=1,file=./ovmf-x86_64-vars.bin \
-   -boot d &
+   -drive if=pflash,format=raw,unit=1,file=./ovmf-x86_64-vars.bin &
 
 wait ${!}

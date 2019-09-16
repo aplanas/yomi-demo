@@ -7,10 +7,10 @@ The script will download the ISO image with the minion, will install
 configure the service and download the Yomi code.
 
 After that the script will create two pillars, designed to install
-openSUSE Tumbleweed in two different kind of nodes:
+openSUSE Tumbleweed and MicroOS in two different kind of nodes:
 
-* Node 1: BIOS machine, with a single HD.
-* Node 2: UEFI machine, with two HDs with LVM.
+* Node 1: BIOS machine, with a single HD (MicroOS).
+* Node 2: UEFI machine, with two HDs with LVM (Tumbleweed).
 
 After that it will restart the `salt-master` service and launch two
 QEMU nodes, that match those profiles.
@@ -30,8 +30,11 @@ images (for example, to generate another run on Yomi), we can use the
 `-c` parameter. Use `-h` to check the help options.
 
 ```Bash
-# Run the script in background. I will download the assents
+# Run the script in background. It will download the assents
 ./run.sh -c &
+
+# From the Grub command line, add master=10.0.2.2 to the kernel
+# command line
 
 # Activate the new venv (wait until the VMs are up)
 source venv/bin/activate
@@ -39,14 +42,22 @@ source venv/bin/activate
 # Testing the environment. We ping all the VMs
 salt -c venv/etc/salt '*' test.ping
 
-# Install openSUSE in node 1
+# Install openSUSE in node 1 (BIOS & MicroOS)
 salt -c venv/etc/salt '00:00:00:11:11:11' state.highstate
 
-# Install openSUSE in node 2
+# Install openSUSE in node 2 (EFI & Tumbleweed & LVM)
 salt -c venv/etc/salt '00:00:00:22:22:22' state.highstate
 
 # Install openSUSE in both nodes at the same time
 salt -c venv/etc/salt '*' state.highstate
+```
+
+Note that in order that the `salt-minion` can find the `salt-master`
+service, we need to add `master=10.0.2.2` in the kernel command line
+from the Grub boot loader. If we miss this step, we can add it later:
+
+```Bash
+echo "master: 10.0.2.2" > /etc/salt/minion.d/master.conf
 ```
 
 In a different terminal we can monitor the installation using the Yomi
