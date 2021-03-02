@@ -252,7 +252,7 @@ function reset_yomi_demo {
     cat <<EOF > srv/salt/top.sls
 base:
   '00:00:00:*':
-    - yomi.installer
+    - yomi
 EOF
 
     cat <<EOF > srv/pillar/top.sls
@@ -269,7 +269,6 @@ config:
   events: yes
   reboot: yes #kexec
   snapper: yes
-  grub2_theme: yes
   locale: en_US.UTF-8
   keymap: us
   timezone: UTC
@@ -285,6 +284,9 @@ partitions:
           size: 1MB
           type: boot
         - number: 2
+          size: 16384MB
+          type: linux
+        - number: 2
           size: rest
           type: linux
 
@@ -292,11 +294,11 @@ filesystems:
   /dev/sda2:
     filesystem: btrfs
     mountpoint: /
+    options: [ro]
     subvolumes:
       prefix: '@'
       subvolume:
         - path: root
-        - path: tmp
         - path: home
         - path: opt
         - path: srv
@@ -304,22 +306,29 @@ filesystems:
         - path: usr/local
         - path: boot/grub2/i386-pc
         - path: boot/grub2/x86_64-efi
-        - path: var
-          copy_on_write: no
+  /dev/sda3:
+    filesystem: btrfs
+    mountpoint: /var
 
 bootloader:
   device: /dev/sda
   kernel: swapaccount=1
   disable_os_prober: yes
+  theme: yes
 
 software:
+  config:
+    minimal: yes
+    enabled: yes
+    autorefresh: yes
+    gpgcheck: yes
   repositories:
     repo-oss: "http://download.opensuse.org/tumbleweed/repo/oss"
   packages:
     - pattern:microos_base
     - pattern:microos_defaults
     - pattern:microos_hardware
-    - pattern:microos_apparmor
+    - kernel-default
 
 salt-minion:
   configure: yes
@@ -338,7 +347,6 @@ config:
   events: yes
   reboot: yes #kexec
   snapper: yes
-  grub2_theme: yes
   locale: en_US.UTF-8
   keymap: us
   timezone: UTC
@@ -402,8 +410,14 @@ filesystems:
 
 bootloader:
   device: /dev/sda
+  theme: yes
 
 software:
+  config:
+    minimal: no
+    enabled: yes
+    autorefresh: yes
+    gpgcheck: yes
   repositories:
     repo-oss: "http://download.opensuse.org/tumbleweed/repo/oss"
   packages:
