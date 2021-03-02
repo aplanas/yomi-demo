@@ -33,7 +33,7 @@ images (for example, to generate another run on Yomi), we can use the
 # Run the script in background. It will download the assents
 ./run.sh -c &
 
-# From the Grub command line, add master=10.0.2.2 to the kernel
+# From the Grub command line, add ym.master=10.0.2.2 to the kernel
 # command line
 
 # Activate the new venv (wait until the VMs are up)
@@ -53,8 +53,9 @@ salt -c venv/etc/salt '*' state.highstate
 ```
 
 Note that in order that the `salt-minion` can find the `salt-master`
-service, we need to add `master=10.0.2.2` in the kernel command line
-from the Grub boot loader. If we miss this step, we can add it later:
+service, we need to add `ym.master=10.0.2.2` in the kernel command
+line from the Grub boot loader. If we miss this step, we can add it
+later:
 
 ```Bash
 echo "master: 10.0.2.2" > /etc/salt/minion.d/master.conf
