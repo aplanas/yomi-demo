@@ -2,7 +2,7 @@
 #
 # Author: Alberto Planas <aplanas@suse.com>
 #
-# Copyright 2019 SUSE LINUX GmbH, Nuernberg, Germany.
+# Copyright 2021 SUSE LLC.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
